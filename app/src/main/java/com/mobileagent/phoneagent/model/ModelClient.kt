@@ -63,8 +63,8 @@ class ModelClient(
                 is List<*> -> {
                     // 根据服务商使用不同的内容格式
                     when (provider.responseFormat) {
-                        ResponseFormat.OPENAI_COMPATIBLE -> {
-                            // OpenAI兼容格式：content数组
+                        ResponseFormat.OPENAI_COMPATIBLE, ResponseFormat.GLM -> {
+                            // OpenAI兼容格式和GLM格式：content数组
                             val contentArray = com.google.gson.JsonArray()
                             content.filterIsInstance<ContentItem>().forEach { item ->
                                 val itemObj = JsonObject()
@@ -173,13 +173,34 @@ class ModelClient(
             addProperty("temperature", temperature)
             addProperty("top_p", topP)
             add("messages", messagesArray)
+            
+            // GLM (智谱AI) 支持思考模式，启用 thinking 字段
+            if (provider == ModelProvider.GLM) {
+                val thinkingObj = JsonObject()
+                thinkingObj.addProperty("type", "enabled")
+                add("thinking", thinkingObj)
+                Log.d(TAG, "✅ 已启用 GLM 思考模式")
+            }
         }
 
         val requestJson = requestBody.toString()
         Log.d(TAG, "请求体大小: ${requestJson.length} 字符")
         Log.d(TAG, "最后一条消息预览: ${getLastMessagePreview(messages)}")
 
-        Log.d(TAG, "请求 JSON 预览: $requestJson")
+        // 检查是否包含 thinking 参数（GLM）
+        if (provider == ModelProvider.GLM) {
+            val hasThinking = requestJson.contains("\"thinking\"")
+            Log.d(TAG, "GLM 思考模式检查: ${if (hasThinking) "✅ 已包含 thinking 参数" else "❌ 未找到 thinking 参数"}")
+            if (hasThinking) {
+                // 提取 thinking 部分用于日志
+                val thinkingMatch = "\"thinking\"\\s*:\\s*\\{[^}]+\\}".toRegex().find(requestJson)
+                if (thinkingMatch != null) {
+                    Log.d(TAG, "Thinking 参数内容: ${thinkingMatch.value}")
+                }
+            }
+        }
+        
+        Log.d(TAG, "请求 JSON 预览: ${requestJson.take(500)}${if (requestJson.length > 500) "..." else ""}")
 
         // 根据服务商构建请求URL和Headers
         val requestUrl = when (provider) {
@@ -200,6 +221,10 @@ class ModelClient(
             }
             ModelProvider.GOOGLE -> {
                 requestBuilder.addHeader("x-goog-api-key", apiKey)
+            }
+            ModelProvider.GLM -> {
+                // 智谱AI 使用 Authorization: Bearer 格式
+                requestBuilder.addHeader("Authorization", "Bearer $apiKey")
             }
             else -> {
                 if (apiKey.isNotEmpty() && apiKey != "ollama") {
@@ -279,6 +304,34 @@ class ModelClient(
                 content = textContent.get("text").asString
                 thinking = "" // Anthropic格式不包含thinking
             }
+            ResponseFormat.GLM -> {
+                val choices = json.getAsJsonArray("choices")
+                val firstChoice = choices[0].asJsonObject
+                val message = firstChoice.getAsJsonObject("message")
+                content = message.get("content").asString
+                thinking = try {
+                    // 优先从 message.reasoning_content 
+                    message.get("reasoning_content")?.asString
+                        // 兼容其他可能的字段名
+                        ?: message.get("thinking")?.asString
+                        ?: message.get("reasoning")?.asString
+                        // 如果 message 中没有，尝试从 choice 中获取
+                        ?: firstChoice.get("reasoning_content")?.asString
+                        ?: firstChoice.get("thinking")?.asString
+                        ?: firstChoice.get("reasoning")?.asString
+                        ?: ""
+                } catch (e: Exception) {
+                    Log.w(TAG, "获取 GLM thinking 字段失败", e)
+                    ""
+                }
+                
+                if (thinking.isNotEmpty()) {
+                    Log.d(TAG, "✅ 成功获取 GLM thinking 字段（reasoning_content），长度: ${thinking.length}")
+                    Log.d(TAG, "思考内容: ${thinking.take(200)}${if (thinking.length > 200) "..." else ""}")
+                } else {
+                    Log.w(TAG, "⚠️ 未获取到 GLM thinking 字段，请检查是否启用了思考模式")
+                }
+            }
             else -> {
                 // OpenAI兼容格式
                 val choices = json.getAsJsonArray("choices")
@@ -287,7 +340,9 @@ class ModelClient(
                 content = message.get("content").asString
                 // 尝试获取thinking字段（某些模型支持）
                 thinking = try {
-                    message.get("reasoning")?.asString ?: ""
+                    message.get("reasoning")?.asString
+                        ?: message.get("thinking")?.asString
+                        ?: ""
                 } catch (e: Exception) {
                     ""
                 }

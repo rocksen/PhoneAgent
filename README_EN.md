@@ -253,7 +253,15 @@ Return Execution Result
 - **Image Format**: Data URL
 - **Response Format**: OpenAI Compatible
 
-### 6. Custom
+### 6. GLM (智谱AI)
+- **API Key Required**
+- **Default URL**: `https://open.bigmodel.cn/api/paas/v4`
+- **Default Model**: `glm-4.5v`
+- **Image Format**: Data URL
+- **Response Format**: GLM Format (supports thinking field)
+- **Special Features**: Supports thinking mode, can get detailed reasoning process
+
+### 7. Custom
 - Supports custom API URL and model
 - Default uses OpenAI compatible format
 

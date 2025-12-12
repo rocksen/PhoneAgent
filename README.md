@@ -248,7 +248,15 @@ graph TD
 - **图片格式**: Data URL
 - **响应格式**: OpenAI 兼容
 
-### 6. 自定义
+### 6. GLM (智谱AI)
+- **需要 API Key**
+- **默认地址**: `https://open.bigmodel.cn/api/paas/v4`
+- **默认模型**: `glm-4.5v`
+- **图片格式**: Data URL
+- **响应格式**: GLM 格式（支持 thinking 字段）
+- **特色功能**: 支持思考模式，可获取详细的推理过程
+
+### 7. 自定义
 - 支持自定义 API 地址和模型
 - 默认使用 OpenAI 兼容格式
 

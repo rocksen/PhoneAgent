@@ -58,6 +58,14 @@ enum class ModelProvider(
         imageFormat = ImageFormat.DATA_URL,
         responseFormat = ResponseFormat.OPENAI_COMPATIBLE
     ),
+    GLM(
+        displayName = "GLM (智谱AI)",
+        defaultBaseUrl = "https://open.bigmodel.cn/api/paas/v4",
+        defaultModelName = "glm-4.5v",
+        requiresApiKey = true,
+        imageFormat = ImageFormat.DATA_URL,
+        responseFormat = ResponseFormat.GLM
+    ),
     CUSTOM(
         displayName = "自定义",
         defaultBaseUrl = "",
@@ -90,6 +98,7 @@ enum class ImageFormat {
 enum class ResponseFormat {
     OPENAI_COMPATIBLE,  // OpenAI兼容格式
     ANTHROPIC,          // Anthropic格式
-    GOOGLE              // Google格式
+    GOOGLE,             // Google格式
+    GLM                 // GLM (智谱AI) 格式，支持 thinking 字段
 }
 
